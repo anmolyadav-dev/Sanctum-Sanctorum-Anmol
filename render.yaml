@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sanctum-sanctorum
+    env: python
+    buildCommand: uv sync --frozen --no-dev
+    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SANCTUM_DATABASE_URL
+        fromDatabase:
+          name: sanctum-db
+          property: connectionString
+
+databases:
+  - name: sanctum-db
+    plan: free
