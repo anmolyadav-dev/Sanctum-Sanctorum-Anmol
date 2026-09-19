@@ -75,6 +75,15 @@ All features defined in [SPEC.md](SPEC.md) have been implemented and validated a
    - The spec required email to be stripped and lowercased before regex checking. In the starter code, regex validation was performed directly on raw input without stripping, causing whitespace-padded valid emails to fail validation. Corrected by applying `.strip().lower()` inside the validator.
 3. **Pagination Total Count**:
    - The starter `list_books` computed `total = len(books)` after applying `limit` and `offset`, which reported the page size rather than the total matching records in the catalogue. Updated to issue a pre-pagination count query (`func.count()`).
+4. **Late Fee Price Cap vs. Price Fluctuations (`POST /loans/{id}/return`)**:
+   - The spec specifies: `late_fee_cents = min(days_late * 25, book.price_cents), using the book's price at the time of return.`
+   - In orders, prices are frozen at order creation time (`unit_price_cents`). For loans, using the price at return time means if an admin discounts a book to $1.00 via `PATCH /books/{id}`, an overdue borrower's fee cap drops to $1.00; conversely, if the book price increases, their fee cap rises. In production, snapshotting `borrow_price_cents` on the loan model would provide deterministic fee ceilings.
+5. **High-Concurrency Race Conditions on Inventory (`POST /orders`)**:
+   - Under SQLite, database-level locking prevents concurrent write races. In a multi-worker production environment on PostgreSQL, two simultaneous checkouts for the last copy (`stock = 1`) could both read available stock before either commits. To prevent negative stock, production deployments should utilize row-level locking (`select(...).with_for_update()`) or atomic decrement guards (`UPDATE books SET stock = stock - :qty WHERE id = :id AND stock >= :qty`).
+6. **Cross-Database Collation in Mixed-Case Title Sorting**:
+   - As noted in `SPEC.md`, SQLite orders uppercase before lowercase (`A`, `Z`, `a`, `z`) while PostgreSQL default collations sort case-insensitively. Standardizing to `func.lower(Book.title)` guarantees identical deterministic ordering across all environments.
+7. **Optional Extra Implemented: `GET /members` with Pagination**:
+   - Implemented `GET /members?limit=20&offset=0` returning `MemberPage(items=[MemberOut], total, limit, offset)` matching the pagination style of the catalogue.
 
 ---
 
