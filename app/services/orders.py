@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict
 
 from fastapi import HTTPException
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.models import Book, Member, MemberTier, Order, OrderItem, OrderStatus
@@ -66,7 +67,17 @@ def create_order(db: Session, data: OrderCreate, now: datetime) -> Order:
     total_quantity = 0
     for item in data.items:
         book = books_by_id[item.book_id]
-        book.stock -= item.quantity
+        res = db.execute(
+            update(Book)
+            .where(Book.id == item.book_id, Book.stock >= item.quantity)
+            .values(stock=Book.stock - item.quantity)
+        )
+        if res.rowcount == 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"Insufficient stock for book '{book.title}'",
+            )
         unit_price = book.price_cents
         subtotal_cents += unit_price * item.quantity
         total_quantity += item.quantity

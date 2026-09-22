@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import Book, Loan, Member, MemberTier
@@ -121,10 +121,13 @@ def create_loan(db: Session, data: LoanCreate, now: datetime) -> LoanOut:
                 detail=f"Tier '{member.tier}' loan limit of {limit} reached",
             )
 
-    if book.stock <= 0:
+    res = db.execute(
+        update(Book)
+        .where(Book.id == book.id, Book.stock > 0)
+        .values(stock=Book.stock - 1)
+    )
+    if res.rowcount == 0:
         raise HTTPException(status_code=409, detail="Book is out of stock")
-
-    book.stock -= 1
     loan = Loan(
         member_id=member.id,
         book_id=book.id,

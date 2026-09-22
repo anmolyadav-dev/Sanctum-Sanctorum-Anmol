@@ -78,8 +78,8 @@ All features defined in [SPEC.md](SPEC.md) have been implemented and validated a
 4. **Late Fee Price Cap vs. Price Fluctuations (`POST /loans/{id}/return`)**:
    - The spec specifies: `late_fee_cents = min(days_late * 25, book.price_cents), using the book's price at the time of return.`
    - In orders, prices are frozen at order creation time (`unit_price_cents`). For loans, using the price at return time means if an admin discounts a book to $1.00 via `PATCH /books/{id}`, an overdue borrower's fee cap drops to $1.00; conversely, if the book price increases, their fee cap rises. In production, snapshotting `borrow_price_cents` on the loan model would provide deterministic fee ceilings.
-5. **High-Concurrency Race Conditions on Inventory (`POST /orders`)**:
-   - Under SQLite, database-level locking prevents concurrent write races. In a multi-worker production environment on PostgreSQL, two simultaneous checkouts for the last copy (`stock = 1`) could both read available stock before either commits. To prevent negative stock, production deployments should utilize row-level locking (`select(...).with_for_update()`) or atomic decrement guards (`UPDATE books SET stock = stock - :qty WHERE id = :id AND stock >= :qty`).
+5. **Optional Extra Implemented: High-Concurrency Safe Stock Reservation (`POST /orders` & `POST /loans`)**:
+   - To handle concurrent checkouts and borrows for the last copy safely, we implemented atomic conditional updates (`UPDATE books SET stock = stock - :qty WHERE id = :id AND stock >= :qty`). If `rowcount == 0`, the transaction rolls back immediately and raises HTTP 409 Conflict. This guarantees inventory integrity across concurrent requests without overselling or race conditions.
 6. **Cross-Database Collation in Mixed-Case Title Sorting**:
    - As noted in `SPEC.md`, SQLite orders uppercase before lowercase (`A`, `Z`, `a`, `z`) while PostgreSQL default collations sort case-insensitively. Standardizing to `func.lower(Book.title)` guarantees identical deterministic ordering across all environments.
 7. **Optional Extra Implemented: `GET /members` with Pagination**:
