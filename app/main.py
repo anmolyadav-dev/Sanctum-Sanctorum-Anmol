@@ -47,7 +47,10 @@ def create_app(init_db: bool = True) -> FastAPI:
     @application.get("/health", response_model=HealthOut, tags=["health"])
     def health():
         return {"status": "ok"}
-
+        
+    @application.head("/health")
+    def health_head():
+        return
     application.include_router(books.router)
     application.include_router(members.router)
     application.include_router(orders.router)
