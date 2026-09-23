@@ -2,7 +2,7 @@
 
 ## Deployment Information
 
-- **Live URL**: `https://sanctum-sanctorum.onrender.com` *(or your deployed Render/Railway/Fly.io URL)*
+- **Live URL**: `https://sanctum-sanctorum-anmol.onrender.com`
 - **Local URL**: `http://localhost:8000` (Swagger UI available at `/docs`)
 - **Seeded Member Accounts for Testing**:
   - `Member #1`: **Wong Li** (`wong@example.com`, Tier: `supreme` — unlimited borrowing, 15% discount, access to restricted grimoires)
