@@ -98,8 +98,5 @@ In adherence to Section 5 of [INSTRUCTIONS.md](INSTRUCTIONS.md):
   3. *Refactoring & Clean Layering*: Ensuring router handlers remain thin while consolidating all business logic and error triggers inside service modules.
   4. *Deployment Configuration*: Scaffolding production `Dockerfile`, `render.yaml`, and `.env.example`.
 - **Where AI Output Was Overridden**:
-  - *Order of Checks in Order Creation*: An initial suggestion evaluated member access before verifying the existence of all requested books. The spec strictly mandates:
-    1. 404: member not found; 404: any book not found
-    2. 403: any book restricted and tier below master
-    3. 409: insufficient stock
-    Testing against `test_404_checked_before_restricted` verified that missing book IDs must raise 404 even if an existing book in the cart is restricted for an apprentice. The lookup logic was restructured to load all books first and trigger 404 before evaluating tier access.
+  - *Atomic Stock Reservation vs. In-Memory Checks*: AI initially generated straightforward Python in-memory decrements (`if book.stock >= qty: book.stock -= qty`). While this passed initial sequential unit tests, I overrode it with database-level atomic conditional updates (`UPDATE books SET stock = stock - :qty WHERE id = :id AND stock >= :qty`) with `res.rowcount == 0` check. This prevents race conditions and overselling when multiple concurrent users checkout or borrow the last copy simultaneously.
+  - *Order of Checks in Order Creation*: An initial code suggestion checked member permissions before verifying whether all requested books existed. [SPEC.md](SPEC.md) strictly requires 404 (member not found / book not found) to be raised before 403 (tier clearance). I restructured the service to validate all book IDs first so missing items return 404 before evaluating restricted tier access.
