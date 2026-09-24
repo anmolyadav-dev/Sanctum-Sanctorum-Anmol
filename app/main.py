@@ -12,15 +12,32 @@ from app.clock import get_now
 from app.db import Base, SessionLocal, engine
 from app.routers import books, loans, members, orders, reports
 from app.schemas import HealthOut
+from sqlalchemy import inspect, text
+
 from app.seed import seed_if_empty
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
+def ensure_schema() -> None:
+    Base.metadata.create_all(engine)
+    with engine.connect() as conn:
+        inspector = inspect(conn)
+        if "loans" in inspector.get_table_names():
+            columns = {c["name"] for c in inspector.get_columns("loans")}
+            if "due_at" not in columns:
+                conn.execute(text("ALTER TABLE loans ADD COLUMN due_at DATETIME"))
+            if "returned_at" not in columns:
+                conn.execute(text("ALTER TABLE loans ADD COLUMN returned_at DATETIME"))
+            if "late_fee_cents" not in columns:
+                conn.execute(text("ALTER TABLE loans ADD COLUMN late_fee_cents INTEGER DEFAULT 0 NOT NULL"))
+            conn.commit()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Create tables on the default engine and load demo data into an empty database."""
-    Base.metadata.create_all(engine)
+    ensure_schema()
     with SessionLocal() as db:
         seed_if_empty(db, get_now())
     yield
